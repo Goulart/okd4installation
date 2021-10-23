@@ -21,7 +21,7 @@ commit;
 alter tabLe customers
       modify id int(11) not null auto_increment, auto_increment=2;
 commit;
--- create user 'restappu'@'%' IDENTIFIED BY 'mypa55';
+create user 'restappu'@'%' IDENTIFIED BY 'mypa55';
 grant all privileges on nodeApi_DB.* TO 'restappu'@'%';
 commit;
 EOF
