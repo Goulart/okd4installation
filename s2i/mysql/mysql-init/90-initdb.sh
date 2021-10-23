@@ -1,7 +1,6 @@
 #!/bin/bash
 
 cat <<EOF | mysql $mysql_flags
-echo 'create database nodeApi_DB;' | mysql $mysql_flags
 create database nodeApi_DB;
 use nodeApi_DB;
 create table customers (
