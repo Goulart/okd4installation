@@ -13,7 +13,7 @@
             "openshift.io/display-name": "node.js REST API app with express and mysql (persistent)",
             "openshift.io/documentation-url": "https://github.com/Goulart/okd4installation/tree/master/s2i/README.md",
             "openshift.io/long-description": "This template defines resources needed to develop a Rails application, including a build configuration, application deployment configuration, and database deployment configuration.  The database is stored in persistent storage. This configuration should be used for experimental purposes only.",
-            "tags": "quickstart,node.js,express, mysql",
+            "tags": "quickstart,node.js,express, mysql"
         },
         "name": "nodejs-mysql-restapi-persistent",
         "namespace": "openshift"
@@ -340,7 +340,7 @@
                                 "livenessProbe": {
                                     "exec": {
                                         "command": [
-                                            "/opt/rh/rh-mysql80/root/usr/bin/mysql, "-V"
+                                            "/opt/rh/rh-mysql80/root/usr/bin/mysql", "-V"
                                         ]
                                     },
                                     "initialDelaySeconds": 120,
@@ -355,7 +355,7 @@
                                 "readinessProbe": {
                                     "exec": {
                                         "command": [
-                                            "/opt/rh/rh-mysql80/root/usr/bin/mysql, "-V"
+                                            "/opt/rh/rh-mysql80/root/usr/bin/mysql", "-V"
                                         ]
                                     },
                                     "initialDelaySeconds": 5,
