@@ -8,7 +8,7 @@
     "message": "The following service(s) have been created in your project: ${NAME}, ${DATABASE_SERVICE_NAME}.\n\nFor more information about using this template see https://github.com/Goulart/okd4installation/tree/master/s2i/README.md",
     "metadata": {
         "annotations": {
-            "description": "An example node.js REST API app with express and mysql. For more information about using this template, including OpenShift considerations, see https://github.com/Goulart/okd4installation/tree/master/s2i/README.md\n\nWARNING: Only use this template for testing.",
+            "description": "An example node.js REST API app with express and mysql. For more information about using this template, including OpenShift considerations, see https://github.com/goulart/okd4installation/tree/master/s2i/README.md\n\nWARNING: Only use this template for testing.",
             "iconClass": "icon-ruby",
             "openshift.io/display-name": "node.js REST API app with express and mysql (persistent)",
             "openshift.io/documentation-url": "https://github.com/Goulart/okd4installation/tree/master/s2i/README.md",
@@ -194,7 +194,7 @@
                             {
                                 "env": [
                                     {
-                                        "name": "DATABASE_SERVICE_NAME",
+                                        "name": "MYSQL_SERVICE_HOST",
                                         "value": "${DATABASE_SERVICE_NAME}"
                                     },
                                     {
