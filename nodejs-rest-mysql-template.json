@@ -9,7 +9,7 @@
     "metadata": {
         "annotations": {
             "description": "An example node.js REST API app with express and mysql. For more information about using this template, including OpenShift considerations, see https://github.com/goulart/okd4installation/tree/master/s2i/README.md\n\nWARNING: Only use this template for testing.",
-            "iconClass": "icon-ruby",
+            "iconClass": "icon-nodejs",
             "openshift.io/display-name": "node.js REST API app with express and mysql (persistent)",
             "openshift.io/documentation-url": "https://github.com/Goulart/okd4installation/tree/master/s2i/README.md",
             "openshift.io/long-description": "This template defines resources needed to develop a Rails application, including a build configuration, application deployment configuration, and database deployment configuration.  The database is stored in persistent storage. This configuration should be used for experimental purposes only.",
@@ -18,8 +18,6 @@
         "name": "nodejs-mysql-restapi-persistent",
         "namespace": "openshift"
     },
-
-
     "objects": [
         {
             "apiVersion": "v1",
@@ -104,6 +102,16 @@
         },
         {
             "apiVersion": "v1",
+            "kind": "ImageStream",
+            "metadata": {
+                "annotations": {
+                    "description": "Keeps track of changes in the mysql image"
+                },
+                "name": "${DATABASE_SERVICE_NAME}"
+            }
+        },
+        {
+            "apiVersion": "v1",
             "kind": "BuildConfig",
             "metadata": {
                 "annotations": {
@@ -131,7 +139,7 @@
                     "sourceStrategy": {
                         "from": {
                             "kind": "ImageStreamTag",
-                            "name": "quay.io/centos7/nodejs-12-centos7:1",
+                            "name": "nodejs-12-centos7:1",
                             "namespace": "${NAMESPACE}"
                         }
                     },
@@ -146,7 +154,7 @@
                     },
                     {
                         "github": {
-                            "secret": "${GITHUB_WEBHOOK_SECRET}"
+                            "secret": "${GITHUB_WEBHOOK_SECRET_NODEJS}"
                         },
                         "type": "GitHub"
                     }
@@ -169,17 +177,6 @@
                     "name": "${NAME}"
                 },
                 "strategy": {
-                    "recreateParams": {
-                        "pre": {
-                            "execNewPod": {
-                                "command": [
-                                    "./migrate-database.sh"
-                                ],
-                                "containerName": "${NAME}"
-                            },
-                            "failurePolicy": "Abort"
-                        }
-                    },
                     "type": "Recreate"
                 },
                 "template": {
@@ -221,7 +218,7 @@
                                     },
                                     {
                                         "name": "RESTAPI_PORT",
-                                        "value": 3000
+                                        "value": "3000"
                                     }
                                 ],
                                 "image": " ",
@@ -267,6 +264,57 @@
                     },
                     {
                         "type": "ConfigChange"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "BuildConfig",
+            "metadata": {
+                "annotations": {
+                    "description": "Defines how to build mysql image",
+                    "template.alpha.openshift.io/wait-for-ready": "true"
+                },
+                "name": "${DATABASE_SERVICE_NAME}"
+            },
+            "spec": {
+                "output": {
+                    "to": {
+                        "kind": "ImageStreamTag",
+                        "name": "${DATABASE_SERVICE_NAME}:latest"
+                    }
+                },
+                "source": {
+                    "contextDir": "${CONTEXT_DIR_MYSQL}",
+                    "git": {
+                        "ref": "${SOURCE_REPOSITORY_REF}",
+                        "uri": "${SOURCE_REPOSITORY_URL}"
+                    },
+                    "type": "Git"
+                },
+                "strategy": {
+                    "sourceStrategy": {
+                        "from": {
+                            "kind": "ImageStreamTag",
+                            "name": "mysql-80-centos7:1",
+                            "namespace": "${NAMESPACE}"
+                        }
+                    },
+                    "type": "Source"
+                },
+                "triggers": [
+                    {
+                        "type": "ImageChange"
+                    },
+                    {
+                        "type": "ConfigChange"
+                    },
+                    {
+                        "github": {
+                            "secret": "${GITHUB_WEBHOOK_SECRET_MYSQL}"
+                        },
+                        "type": "GitHub"
                     }
                 ]
             }
@@ -333,7 +381,7 @@
                                     },
                                     {
                                         "name": "MYSQL_LOWER_CASE_TABLE_NAMES",
-                                        "value": 1
+                                        "value": "1"
                                     }
                                 ],
                                 "image": " ",
@@ -388,8 +436,7 @@
                             ],
                             "from": {
                                 "kind": "ImageStreamTag",
-                                "name": "quay.io/centos7/mysql-80-centos7:1",
-                                "namespace": "${NAMESPACE}"
+                                "name": "${DATABASE_SERVICE_NAME}:latest"
                             }
                         },
                         "type": "ImageChange"
@@ -421,23 +468,26 @@
             "displayName": "Git Repository URL",
             "name": "SOURCE_REPOSITORY_URL",
             "required": true,
-            "value": "https://github.com/Goulart/okd4installation" 
+            "value": "https://github.com/goulart/okd4installation"
         },
         {
             "description": "Set this to a branch name, tag or other ref of your repository if you are not using the default branch.",
             "displayName": "Git Reference",
-            "name": "SOURCE_REPOSITORY_REF"
+            "name": "SOURCE_REPOSITORY_REF",
+            "value": ""
         },
         {
             "description": "Set this to the relative path to your project if it is not in the root of your repository.",
             "displayName": "Context Directory",
             "name": "CONTEXT_DIR_MYSQL",
+            "required": true,
 			"value": "s2i/mysql" 
         },
         {
             "description": "Set this to the relative path to your project if it is not in the root of your repository.",
             "displayName": "Context Directory",
             "name": "CONTEXT_DIR_NODEJS",
+            "required": true,
 			"value": "s2i/nodejs" 
         },
         {
@@ -447,17 +497,30 @@
 			"value": "nodejs-restapi"  
         },
         {
-            "description": "Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
-            "displayName": "GitHub Webhook Secret",
+            "description": "Github trigger secret. A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
+            "displayName": "GitHub Webhook Secret for nodejs",
             "from": "[a-zA-Z0-9]{40}",
             "generate": "expression",
-            "name": "GITHUB_WEBHOOK_SECRET"
+            "name": "GITHUB_WEBHOOK_SECRET_NODEJS"
+        },
+        {
+            "description": "Github trigger secret for mysql. A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
+            "displayName": "GitHub Webhook Secret for mysql",
+            "from": "[a-zA-Z0-9]{40}",
+            "generate": "expression",
+            "name": "GITHUB_WEBHOOK_SECRET_MYSQL"
         },
         {
             "displayName": "Database Service Name",
             "name": "DATABASE_SERVICE_NAME",
             "required": true,
             "value": "mysql"  
+        },
+        {
+            "displayName": "Database root password",
+            "name": "MYSQL_ROOT_PASSWORD",
+            "required": true,
+			"value": "r00tpa55"
         },
         {
             "displayName": "Database Username",

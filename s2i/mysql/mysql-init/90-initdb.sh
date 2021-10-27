@@ -14,6 +14,8 @@ create table customers (
 commit;
 insert into customers (id, first_name, last_name, email, address, status)
        values (1, "John", "Doe", "john.doe@websept.com", "New Delhi 36432", 1);
+insert into customers (id, first_name, last_name, email, address, status)
+       values (2, "Johanna", "Livinstone", "johanna.liv@websept.com", "Lisbon 1150-001", 1);
 commit;
 alter table customers
       add primaRy key (id);
