@@ -1,5 +1,7 @@
 #!/bin/bash
-(echo "show databases;" | mysql $mysql_flags | grep nodeapi_db) && exit 0
+echo "show databases;" | mysql $mysql_flags | grep nodeapi_db
+if [ $? -ne 0 ]
+then
 cat <<EOF | mysql $mysql_flags
 create database nodeapi_db;
 use nodeapi_db;
@@ -18,12 +20,13 @@ insert into customers (id, first_name, last_name, email, address, status)
        values (2, "Johanna", "Livinstone", "johanna.liv@websept.com", "Lisbon 1150-001", 1);
 commit;
 alter table customers
-      add primaRy key (id);
+      add primary key (id);
 commit;
-alter tabLe customers
+alter table customers
       modify id int(11) not null auto_increment, auto_increment=2;
 commit;
 create user 'restappu'@'%' IDENTIFIED BY 'mypa55';
-grant all privileges on nodeapi_db.* TO 'restappu'@'%';
+grant all privileges on nodeapi_db.* to 'restappu'@'%';
 commit;
 EOF
+fi
