@@ -83,7 +83,7 @@
                 "host": "${APPLICATION_DOMAIN}",
                 "to": {
                     "kind": "Service",
-                    "name": "${NAME}"
+                    "name": "${NAME}-svc"
                 }
             }
         },
