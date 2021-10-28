@@ -2,7 +2,7 @@
     "apiVersion": "template.openshift.io/v1",
     "kind": "Template",
     "labels": {
-        "app": "nodejs-rest",
+        "app": "nodejs-rest-api",
         "template": "nodejs-mysql-rest-persistent-template"
     },
     "message": "The following service(s) have been created in your project: ${NAME}, ${DATABASE_SERVICE_NAME}.\n\nFor more information about using this template see https://github.com/Goulart/okd4installation/tree/master/s2i/README.md",
@@ -12,13 +12,32 @@
             "iconClass": "icon-nodejs",
             "openshift.io/display-name": "node.js REST API app with express and mysql (persistent)",
             "openshift.io/documentation-url": "https://github.com/Goulart/okd4installation/tree/master/s2i/README.md",
-            "openshift.io/long-description": "This template defines resources needed to develop a Rails application, including a build configuration, application deployment configuration, and database deployment configuration.  The database is stored in persistent storage. This configuration should be used for experimental purposes only.",
-            "tags": "quickstart,node.js,express, mysql"
+            "openshift.io/long-description": "This template defines resources needed to develop a node.js rest api application, including a build configuration, application deployment configuration, and database deployment configuration.  The database is stored in persistent storage. This configuration should be used for experimental purposes only.",
+            "tags": "node.js, express, mysql"
         },
-        "name": "nodejs-mysql-restapi-persistent",
+        "name": "nodejs-mysql-rest-persistent-template",
         "namespace": "openshift"
     },
     "objects": [
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "name": "dbclaim"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "2Gi"
+                    }
+                },
+                "volumeMode": "Filesystem",
+                "volumeName": "dbvol"
+            }
+        },
         {
             "apiVersion": "v1",
             "kind": "Secret",
@@ -29,6 +48,43 @@
                 "mysql-root-password": "${MYSQL_ROOT_PASSWORD}",
                 "mysql-user": "${MYSQL_USER}",
                 "mysql-password": "${MYSQL_PASSWORD}"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "annotations": {
+                    "description": "node.js express service",
+                    "service.alpha.openshift.io/dependencies": "[{\"name\": \"${DATABASE_SERVICE_NAME}\", \"kind\": \"Service\"}]"
+                },
+                "name": "${NAME}"
+            },
+            "spec": {
+                "ports": [
+                    {
+                        "name": "tcp-3000",
+                        "port": 3000,
+                        "targetPort": 3000
+                    }
+                ],
+                "selector": {
+                    "name": "${NAME}"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Route",
+            "metadata": {
+                "name": "${NAME}"
+            },
+            "spec": {
+                "host": "${APPLICATION_DOMAIN}",
+                "to": {
+                    "kind": "Service",
+                    "name": "${NAME}"
+                }
             }
         },
         {
@@ -55,43 +111,6 @@
         },
         {
             "apiVersion": "v1",
-            "kind": "Service",
-            "metadata": {
-                "annotations": {
-                    "description": "node.js express service",
-                    "service.alpha.openshift.io/dependencies": "[{\"name\": \"${DATABASE_SERVICE_NAME}\", \"kind\": \"Service\"}]"
-                },
-                "name": "${NAME}"
-            },
-            "spec": {
-                "ports": [
-                    {
-                        "name": "web",
-                        "port": 3000,
-                        "targetPort": 3000
-                    }
-                ],
-                "selector": {
-                    "name": "${NAME}"
-                }
-            }
-        },
-        {
-            "apiVersion": "v1",
-            "kind": "Route",
-            "metadata": {
-                "name": "${NAME}"
-            },
-            "spec": {
-                "host": "${APPLICATION_DOMAIN}",
-                "to": {
-                    "kind": "Service",
-                    "name": "${NAME}"
-                }
-            }
-        },
-        {
-            "apiVersion": "v1",
             "kind": "ImageStream",
             "metadata": {
                 "annotations": {
@@ -102,21 +121,10 @@
         },
         {
             "apiVersion": "v1",
-            "kind": "ImageStream",
-            "metadata": {
-                "annotations": {
-                    "description": "Keeps track of changes in the mysql image"
-                },
-                "name": "${DATABASE_SERVICE_NAME}"
-            }
-        },
-        {
-            "apiVersion": "v1",
             "kind": "BuildConfig",
             "metadata": {
                 "annotations": {
-                    "description": "Defines how to build the application",
-                    "template.alpha.openshift.io/wait-for-ready": "true"
+                    "description": "Defines how to build the application"
                 },
                 "name": "${NAME}"
             },
@@ -136,21 +144,20 @@
                     "type": "Git"
                 },
                 "strategy": {
-                    "sourceStrategy": {
-                        "from": {
-                            "kind": "ImageStreamTag",
-                            "name": "nodejs-12-centos7:1",
-                            "namespace": "${NAMESPACE}"
-                        }
+                    "dockerStrategy": {
+                        "dockerfilePath": "."
                     },
-                    "type": "Source"
+                    "type": "Docker"
                 },
                 "triggers": [
                     {
-                        "type": "ImageChange"
+                        "type": "ConfigChange"
                     },
                     {
-                        "type": "ConfigChange"
+                        "generic": {
+                            "secret": "${GENERIC_WEBHOOK_SECRET_NODEJS}"
+                        },
+                        "type": "Generic"
                     },
                     {
                         "github": {
@@ -166,15 +173,14 @@
             "kind": "DeploymentConfig",
             "metadata": {
                 "annotations": {
-                    "description": "Defines how to deploy the node.js with express",
-                    "template.alpha.openshift.io/wait-for-ready": "true"
+                    "description": "Defines how to deploy the node.js with express"
                 },
                 "name": "${NAME}"
             },
             "spec": {
                 "replicas": 1,
                 "selector": {
-                    "name": "${NAME}"
+                    "deploymentConfig": "${NAME}"
                 },
                 "strategy": {
                     "type": "Recreate"
@@ -182,7 +188,8 @@
                 "template": {
                     "metadata": {
                         "labels": {
-                            "name": "${NAME}"
+                            "application": "${NAME}",
+                            "deploymentConfig": "${NAME}"
                         },
                         "name": "${NAME}"
                     },
@@ -221,7 +228,9 @@
                                         "value": "3000"
                                     }
                                 ],
-                                "image": " ",
+                                "image": "${NAME}",
+                                "imagePullPolicy": "Always",
+                                "name": "${NAME}",
                                 "livenessProbe": {
                                     "httpGet": {
                                         "path": "/",
@@ -230,10 +239,11 @@
                                     "initialDelaySeconds": 10,
                                     "timeoutSeconds": 3
                                 },
-                                "name": "${NAME}",
                                 "ports": [
                                     {
-                                        "containerPort": 3000
+                                        "containerPort": 3000,
+                                        "name": "tcp-3000",
+                                        "protocol": "TCP"
                                     }
                                 ],
                                 "readinessProbe": {
@@ -273,8 +283,7 @@
             "kind": "BuildConfig",
             "metadata": {
                 "annotations": {
-                    "description": "Defines how to build mysql image",
-                    "template.alpha.openshift.io/wait-for-ready": "true"
+                    "description": "Defines how to build mysql image"
                 },
                 "name": "${DATABASE_SERVICE_NAME}"
             },
@@ -282,7 +291,7 @@
                 "output": {
                     "to": {
                         "kind": "ImageStreamTag",
-                        "name": "${DATABASE_SERVICE_NAME}:latest"
+                        "name": "${NAME}:latest"
                     }
                 },
                 "source": {
@@ -305,16 +314,23 @@
                 },
                 "triggers": [
                     {
-                        "type": "ImageChange"
-                    },
-                    {
-                        "type": "ConfigChange"
-                    },
-                    {
                         "github": {
                             "secret": "${GITHUB_WEBHOOK_SECRET_MYSQL}"
                         },
                         "type": "GitHub"
+                    },
+                    {
+                        "generic": {
+                            "secret": "${GENERIC_WEBHOOK_SECRET_MYSQL}"
+                        },
+                        "type": "Generic"
+                    },
+                    {
+                        "imageChange": {},
+                        "type": "ImageChange"
+                    },
+                    {
+                        "type": "ConfigChange"
                     }
                 ]
             }
@@ -324,15 +340,14 @@
             "kind": "DeploymentConfig",
             "metadata": {
                 "annotations": {
-                    "description": "Defines how to deploy the mysql database",
-                    "template.alpha.openshift.io/wait-for-ready": "true"
+                    "description": "Defines how to deploy the mysql database"
                 },
                 "name": "${DATABASE_SERVICE_NAME}"
             },
             "spec": {
                 "replicas": 1,
                 "selector": {
-                    "name": "${DATABASE_SERVICE_NAME}"
+                    "deploymentConfig": "${DATABASE_SERVICE_NAME}"
                 },
                 "strategy": {
                     "type": "Recreate"
@@ -340,7 +355,8 @@
                 "template": {
                     "metadata": {
                         "labels": {
-                            "name": "${DATABASE_SERVICE_NAME}"
+                            "application": "${DATABASE_SERVICE_NAME}",
+                            "deploymentConfig": "${DATABASE_SERVICE_NAME}"
                         },
                         "name": "${DATABASE_SERVICE_NAME}"
                     },
@@ -384,59 +400,51 @@
                                         "value": "1"
                                     }
                                 ],
-                                "image": " ",
-                                "livenessProbe": {
-                                    "exec": {
-                                        "command": [
-                                            "/opt/rh/rh-mysql80/root/usr/bin/mysql", "-V"
-                                        ]
-                                    },
-                                    "initialDelaySeconds": 120,
-                                    "timeoutSeconds": 10
-                                },
-                                "name": "mysql",
+                                "image": "${DATABASE_SERVICE_NAME}",
+                                "imagePullPolicy": "Always",
+                                "name": "${DATABASE_SERVICE_NAME}",
                                 "ports": [
                                     {
-                                        "containerPort": 3306
+                                        "containerPort": 3306,
+                                        "name": "mysql",
+                                        "protocol": "TCP"
                                     }
                                 ],
-                                "readinessProbe": {
-                                    "exec": {
-                                        "command": [
-                                            "/opt/rh/rh-mysql80/root/usr/bin/mysql", "-V"
-                                        ]
-                                    },
-                                    "initialDelaySeconds": 5,
-                                    "timeoutSeconds": 1
-                                },
                                 "volumeMounts": [
                                     {
                                         "mountPath": "/var/lib/mysql/data",
-                                        "name": "db-volume"
+                                        "name": "dbvol"
                                     }
-                                ]
+                                ],
+                                "readinessProbe": {
+                                    "initialDelaySeconds": 5,
+                                    "tcpSocket": {
+                                        "port": 3306
+                                    }
+                                }
                             }
                         ],
                         "volumes": [
                           {
-                            "name": "db-volume",
+                            "name": "dbvol",
                             "persistentVolumeClaim": {
                               "claimName": "dbclaim"
                             }
                           }
-                        ]
-					}
+                        ],
+                        "terminationGracePeriodSeconds": 75
+                    }
                 },
                 "triggers": [
                     {
                         "imageChangeParams": {
                             "automatic": true,
                             "containerNames": [
-                                "mysql"
+                                "${DATABASE_SERVICE_NAME}"
                             ],
                             "from": {
                                 "kind": "ImageStreamTag",
-                                "name": "${DATABASE_SERVICE_NAME}:latest"
+                                "name": "${NAME}:latest"
                             }
                         },
                         "type": "ImageChange"
@@ -454,7 +462,7 @@
             "displayName": "Name",
             "name": "NAME",
             "required": true,
-            "value": "nodejs-express-mysql-example" 
+            "value": "nodejs-rest"
         },
         {
             "description": "The OpenShift Namespace where the ImageStream resides.",
@@ -474,7 +482,7 @@
             "description": "Set this to a branch name, tag or other ref of your repository if you are not using the default branch.",
             "displayName": "Git Reference",
             "name": "SOURCE_REPOSITORY_REF",
-            "value": ""
+            "value": "master"
         },
         {
             "description": "Set this to the relative path to your project if it is not in the root of your repository.",
@@ -488,33 +496,47 @@
             "displayName": "Context Directory",
             "name": "CONTEXT_DIR_NODEJS",
             "required": true,
-			"value": "s2i/nodejs" 
+			"value": "nodejs-rest-api"
         },
         {
             "description": "The exposed hostname that will route to the nodejs-restapi service, if left blank a value will be defaulted.",
             "displayName": "Application Hostname",
             "name": "APPLICATION_DOMAIN",
-			"value": "nodejs-restapi"  
+			"value": "nodejs-restapi.apps.okd.osh.lab.lan"
         },
         {
             "description": "Github trigger secret. A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
             "displayName": "GitHub Webhook Secret for nodejs",
-            "from": "[a-zA-Z0-9]{40}",
+            "from": "[a-zA-Z0-9]{8}",
             "generate": "expression",
             "name": "GITHUB_WEBHOOK_SECRET_NODEJS"
         },
         {
             "description": "Github trigger secret for mysql. A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
             "displayName": "GitHub Webhook Secret for mysql",
-            "from": "[a-zA-Z0-9]{40}",
+            "from": "[a-zA-Z0-9]{8}",
             "generate": "expression",
             "name": "GITHUB_WEBHOOK_SECRET_MYSQL"
+        },
+        {
+            "description": "Generic build secret for nodejs. A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
+            "displayName": "Generic build secret for nodejs",
+            "from": "[a-zA-Z0-9]{8}",
+            "generate": "expression",
+            "name": "GENERIC_WEBHOOK_SECRET_NODEJS"
+        },
+        {
+            "description": "Generic build secret for mysql. A difficult to guess string encoded as part of the webhook URL.  Not encrypted.",
+            "displayName": "Generic build secret for mysql",
+            "from": "[a-zA-Z0-9]{8}",
+            "generate": "expression",
+            "name": "GENERIC_WEBHOOK_SECRET_MYSQL"
         },
         {
             "displayName": "Database Service Name",
             "name": "DATABASE_SERVICE_NAME",
             "required": true,
-            "value": "mysql"  
+            "value": "mysql-rest"
         },
         {
             "displayName": "Database root password",
@@ -526,7 +548,7 @@
             "displayName": "Database Username",
             "name": "MYSQL_USER",
             "required": true,
-			"value": "restappu"  
+			"value": "user1"
         },
         {
             "displayName": "Database Password",
@@ -538,7 +560,7 @@
             "displayName": "Database Name",
             "name": "MYSQL_DATABASE",
             "required": true,
-            "value": "nodeApi_DB"  
+            "value": "items"
         }
     ]
 }

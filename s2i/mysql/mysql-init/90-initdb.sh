@@ -1,8 +1,8 @@
 #!/bin/bash
-
+(echo "show databases;" | mysql $mysql_flags | grep nodeapi_db) && exit 0
 cat <<EOF | mysql $mysql_flags
-create database nodeApi_DB;
-use nodeApi_DB;
+create database nodeapi_db;
+use nodeapi_db;
 create table customers (
     id         int(11)      not null,
     first_name varchar(255) not null,
@@ -24,6 +24,6 @@ alter tabLe customers
       modify id int(11) not null auto_increment, auto_increment=2;
 commit;
 create user 'restappu'@'%' IDENTIFIED BY 'mypa55';
-grant all privileges on nodeApi_DB.* TO 'restappu'@'%';
+grant all privileges on nodeapi_db.* TO 'restappu'@'%';
 commit;
 EOF
